@@ -16,10 +16,12 @@
 package readonly_test
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -44,6 +46,9 @@ func TestCreateFile(t *testing.T) {
 
 func TestCreateFileInDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
+	fmt.Println("filepath = ", filePath)
+	fmt.Println("checking file creation")
+	time.Sleep(30 * time.Second)
 
 	checkIfFileCreationFailed(filePath, t)
 }
