@@ -556,7 +556,7 @@ func (fs *fileSystem) checkInvariants() {
 
 	// INVARIANT: For each value v, v is not fileInode
 	for _, v := range fs.localFileInodes {
-		if _, ok := v.(*inode.FileInode); ok {
+		if _, ok := v.(*inode.FileInode); !ok {
 			panic(fmt.Sprintf(
 				"Unexpected file inode %d, type %T",
 				v.ID(),
@@ -1212,6 +1212,10 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Fill in the response.
 	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	fmt.Println("Printing the attributes")
+	x := -1
+	fmt.Println(uint32(x))
+	fmt.Println(op.Attributes)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
@@ -1394,7 +1398,9 @@ func (fs *fileSystem) createLocalFile(
 		}
 
 		child = fs.mintInode(*result)
-		fs.localFileInodes[child.Name()] = child
+		fs.localFileInodes[child.Name()] = child.(*inode.FileInode)
+		fileInode := child.(*inode.FileInode)
+		err = fileInode.CreateEmptyTempFile()
 	}
 
 	return

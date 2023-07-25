@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
@@ -379,6 +380,12 @@ func (f *FileInode) Attributes(
 		}
 	}
 
+	// If the file is local, don't make a clobbered check. All checks will be
+	// done during flushFile call.
+	if f.IsLocal() {
+		return
+	}
+
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
 	_, clobbered, err := f.clobbered(ctx, false)
@@ -466,13 +473,17 @@ func (f *FileInode) SetMtime(
 		}
 	}
 
-	// If the local content is dirty, simply update its mtime and return. This
+	// 1. If the local content is dirty, simply update its mtime and return. This
 	// will cause the object in the bucket to be updated once we sync. If we lose
 	// power or something the mtime update will be lost, but so will the file
 	// data modifications so this doesn't seem so bad. It's worth saving the
 	// round trip to GCS for the common case of Linux writeback caching, where we
 	// always receive a setattr request just before a flush of a dirty file.
-	if sr.Mtime != nil {
+	fmt.Println("sr time")
+	fmt.Println(sr.Mtime)
+	// 2. If the file is local, that means its not yet synced to GCS. Just update
+	// the mtime locally, it will be synced when the object is created on GCS.
+	if sr.Mtime != nil || f.IsLocal() {
 		f.content.SetMtime(mtime)
 		return
 	}
@@ -529,6 +540,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
 		return
+	}
+
+	if f.IsLocal() {
+		//CreateObject
 	}
 
 	// When listObjects call is made, we fetch data with projection set as noAcl
@@ -601,6 +616,11 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 		err = f.ensureContent(ctx)
 	}
 
+	return
+}
+
+func (f *FileInode) CreateEmptyTempFile() (err error) {
+	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
 	return
 }
 
